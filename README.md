@@ -18,6 +18,8 @@ If you need help, join us on Discord.
 - [Techchrism](https://github.com/techchrism/valorant-api-docs) (Docs)
 - [RumbleMike](https://github.com/RumbleMike/ValorantClientAPI) (API)
 
+# No License
+
 ## Legal
 Riot Games, VALORANT, and any associated logos are trademarks, service marks, and/or registered trademarks of Riot Games, Inc.
 
