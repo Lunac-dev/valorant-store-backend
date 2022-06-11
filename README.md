@@ -17,6 +17,7 @@ If you need help, join us on Discord.
 - [Valorant](https://playvalorant.com/)
 - [Techchrism](https://github.com/techchrism/valorant-api-docs) (Docs)
 - [RumbleMike](https://github.com/RumbleMike/ValorantClientAPI) (API)
+- [Liamcottle](https://github.com/liamcottle/valorant.js) (API)
 
 # No License
 
