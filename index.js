@@ -11,12 +11,13 @@ dotenv.config();
 
 const port = 5000;
 
-var whitelist = ["https://valorantstore.net", "https://www.valorantstore.net", "http://localhost:8080/"] //Cors whitelist
+var whitelist = ["https://valorantstore.net", "https://www.valorantstore.net"] //Cors whitelist
 
 app.set('trust proxy', 1)
 
 var corsOptions = {
     origin: whitelist,
+    //origin: "*",
     optionsSuccessStatus: 200,
     credentials: true,
     methods: ["GET"],
@@ -49,6 +50,12 @@ app.use(wallet, ValorantAuth, ValorantBotAuth, Register, discord, mission);
 //Bundles
 app.get("/valorant/store-featured", (_req, res) => {
     res.end(JSON.stringify(storefeatured));
+});
+
+//VCT
+app.get("/vct/matches", async (_req ,res) => {
+    const response = await axios.get("https://vlrggapi.herokuapp.com/match/results")
+    res.json(response.data);
 });
 
 //404
