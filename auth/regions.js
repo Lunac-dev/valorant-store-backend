@@ -1,7 +1,7 @@
 const Regions = {
     AsiaPacific: 'AP',
     Europe: 'EU',
-    Korea: 'KO',
+    Korea: 'KR',
     NorthAmerica: 'NA',
 }
 

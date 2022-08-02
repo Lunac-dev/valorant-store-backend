@@ -1,13 +1,11 @@
-const express = require('express');
-const cors = require('cors');
-const app = express();
-const axios = require("axios").default;
-const cron = require('node-cron');
-cron.schedule('0 0 */1 * * *', () => updateStoreFeatured()); //Regularly update bundle data
-
 const dotenv = require('dotenv');
 
 dotenv.config();
+const express = require('express');
+const cors = require('cors');
+const app = express();
+
+const shopM = require("./valorant/shop")
 
 const port = 5000;
 
@@ -16,8 +14,8 @@ var whitelist = ["https://valorantstore.net", "https://www.valorantstore.net"] /
 app.set('trust proxy', 1)
 
 var corsOptions = {
-    origin: whitelist,
-    //origin: "*",
+    //origin: whitelist,
+    origin: "*",
     optionsSuccessStatus: 200,
     credentials: true,
     methods: ["GET"],
@@ -25,42 +23,19 @@ var corsOptions = {
 
 app.use(cors(corsOptions)) //Cors
 
-updateStoreFeatured(); //Setup
+shopM.getData()
 
-var storefeatured = "";
-
-//Unknown if used ↓
-function updateStoreFeatured() { //Update Store Bundles
-    axios.get("https://api.henrikdev.xyz/valorant/v1/store-featured")
-        .then((response) => {
-            const data = response.data;
-            storefeatured = data;
-            console.log("Got store-featured");
-    })
-}
-
-const wallet = require("./routes/valorantbot-wallet");
-const ValorantAuth = require("./routes/valorant-auth");
-const ValorantBotAuth = require("./routes/valorantbot-auth");
-const Register = require("./routes/valorant-register");
-const discord = require("./routes/discord");
-const mission = require("./routes/valorantbot-mission");
-app.use(wallet, ValorantAuth, ValorantBotAuth, Register, discord, mission);
-
-//Bundles
-app.get("/valorant/store-featured", (_req, res) => {
-    res.end(JSON.stringify(storefeatured));
-});
-
-//VCT
-app.get("/vct/matches", async (_req ,res) => {
-    const response = await axios.get("https://vlrggapi.herokuapp.com/match/results")
-    res.json(response.data);
-});
+const shop = require("./routes/valorant-shop");
+const wallet = require("./routes/valorant-wallet");
+const mission = require("./routes/valorant-mission");
+const acc = require("./routes/valorant-acc");
+const loadout = require("./routes/valorant-loadout");
+const vsc = require("./routes/vsc");
+app.use(shop, vsc, wallet, mission, acc, loadout);
 
 //404
 app.use((_req, res, _next)=>{ res.status(404).send('Content Not Found'); });
 
 var server = app.listen(port, function(){
-    console.log("Node.js is listening to PORT:" + server.address().port);
+    console.log("Node.js is listening to port:" + server.address().port);
 });
