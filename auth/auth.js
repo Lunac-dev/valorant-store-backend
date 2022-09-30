@@ -48,8 +48,8 @@ class API {
         this.tdidcookie = null;
         this.access_token = null;
         this.entitlements_token = null;
-        this.user_agent = "RiotClient/51.0.0.4429735.4381201 rso-auth (Windows;10;;Professional, x64)";
-        this.client_version = "release-05.01-shipping-12-732296";
+        this.user_agent = "RiotClient/56.0.0.4578455.4552318 rso-auth (Windows;10;;Professional, x64)";
+        this.client_version = "release-05.06-shipping-6-765767";
         this.client_platform = {
             platformType: "PC",
             platformOS: "Windows",
@@ -157,8 +157,10 @@ class API {
         if(access_tokens.data.error){
             if (access_tokens.data.error = 'rate_limited') {
                 console.error('rate_limited: ' + proxies.all[number])
+                throw new Error("Cannot be processed by many requests. Please wait a while and try again.")
+            } else {
+                throw new Error(access_tokens.data.error);
             }
-            throw new Error(access_tokens.data.error);
         }
 
         if (access_tokens.data.type == "multifactor") {

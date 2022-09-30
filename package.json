@@ -17,6 +17,7 @@
     "express": "^4.17.2",
     "express-rate-limit": "^6.4.0",
     "express-session": "^1.17.3",
+    "log4js": "^6.6.1",
     "mysql2": "^2.3.3",
     "node-cron": "^3.0.0",
     "socks-proxy-agent": "^7.0.0"

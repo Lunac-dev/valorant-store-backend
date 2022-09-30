@@ -4,7 +4,7 @@
 
 const mysql = require('mysql2/promise');
 
-const connection = mysql.createPool({
+const pool = mysql.createPool({
     host: process.env.DB_HOST,
     user: "root",
     password: process.env.DB_USER_PASSWORD,
@@ -15,17 +15,23 @@ console.log("DB Connected to " + process.env.DB_HOST)
 module.exports = {
 
     async getUser (discordid) {
-        const [rows] = await connection.execute('SELECT * FROM `bot-users` WHERE `discordid` = ? limit 1;', [discordid]);
+        const conn = await pool.getConnection();
+        const [rows] = await conn.execute('SELECT * FROM `bot-users` WHERE `discordid` = ? limit 1;', [discordid]);
+        conn.release();
         return rows[0]
     },
 
     async getUserData (userid) {
-        const [rows] = await connection.execute('SELECT * FROM `bot-users-data` WHERE `userid` = ? limit 1;', [userid]);
+        const conn = await pool.getConnection();
+        const [rows] = await conn.execute('SELECT * FROM `bot-users-data` WHERE `userid` = ? limit 1;', [userid]);
+        conn.release();
         return rows[0]
     },
 
     async empty (discordid) {
-        const [rows] = await connection.execute('SELECT `discordid` FROM `bot-users` WHERE `discordid` = ? limit 1;', [discordid]);
+        const conn = await pool.getConnection();
+        const [rows] = await conn.execute('SELECT `discordid` FROM `bot-users` WHERE `discordid` = ? limit 1;', [discordid]);
+        conn.release();
         if (rows.length == 1) {
             return false
         } else {
@@ -35,7 +41,9 @@ module.exports = {
 
     async register (userid, access_token, entitlements_token, ssidcookie, region, tdidcookie, discordid, relogin) {
         try {
-            await connection.execute('INSERT INTO `bot-users`(`id`, `playerid`, `access_token`, `entitlements_token`, `ssidcookie`, `region`, `tdidcookie`, `discordid`, `date`, `relogin`) VALUES (null,?,?,?,?,?,?,?,?,?)', [userid, access_token, entitlements_token, ssidcookie, region, tdidcookie, discordid, new Date().toISOString(), relogin]);
+            const conn = await pool.getConnection();
+            await conn.execute('INSERT INTO `bot-users`(`id`, `playerid`, `access_token`, `entitlements_token`, `ssidcookie`, `region`, `tdidcookie`, `discordid`, `date`, `relogin`) VALUES (null,?,?,?,?,?,?,?,?,?)', [userid, access_token, entitlements_token, ssidcookie, region, tdidcookie, discordid, new Date().toISOString(), relogin]);
+            conn.release();
             return true
         } catch (err) {
             return false
@@ -44,7 +52,9 @@ module.exports = {
 
     async addLoginData (userid, username, password) {
         try {
-            await connection.execute('INSERT INTO `bot-users-data`(`userid`, `username`, `password`) VALUES (?,?,?)', [userid, username, password]);
+            const conn = await pool.getConnection();
+            await conn.execute('INSERT INTO `bot-users-data`(`userid`, `username`, `password`) VALUES (?,?,?)', [userid, username, password]);
+            conn.release();
             return true
         } catch (err) {
             return false
@@ -53,7 +63,9 @@ module.exports = {
 
     async remove (discordid) {
         try {
-            await connection.execute('DELETE FROM `bot-users` WHERE `discordid` = ?', [discordid]);
+            const conn = await pool.getConnection();
+            await conn.execute('DELETE FROM `bot-users` WHERE `discordid` = ?', [discordid]);
+            conn.release();
             return true
         } catch (err) {
             return false
@@ -62,8 +74,10 @@ module.exports = {
 
     async update (access_token, ssidcookie, tdidcookie, discordid) {
         try {
-            await connection.execute('UPDATE `bot-users` SET `access_token`=?,`ssidcookie`=?,`tdidcookie`=?,`date`=? WHERE `discordid` = ?',
+            const conn = await pool.getConnection();
+            await conn.execute('UPDATE `bot-users` SET `access_token`=?,`ssidcookie`=?,`tdidcookie`=?,`date`=? WHERE `discordid` = ?',
             [access_token, ssidcookie, tdidcookie, new Date().toISOString(), discordid]);
+            conn.release();
             return true
         } catch (err) {
             return false
@@ -72,10 +86,12 @@ module.exports = {
 
     async updatecache (userid, json, type) {
         try {
-            await connection.execute('DELETE FROM `bot-cache` WHERE `type`= ? AND `userid` = ?', [type, userid]);
-            const m = new Date().getMonth()+1
-            await connection.execute('INSERT INTO `bot-cache`(`userid`, `json`, `date`, `type`) VALUES (?,?,?,?)',
+            const conn = await pool.getConnection();
+            await conn.execute('DELETE FROM `bot-cache` WHERE `type`= ? AND `userid` = ?', [type, userid]);
+            // const m = new Date().getMonth()+1
+            await conn.execute('INSERT INTO `bot-cache`(`userid`, `json`, `date`, `type`) VALUES (?,?,?,?)',
             [userid, json, new Date().toISOString(), type]);
+            conn.release();
             return true
         } catch (err) {
             return false
@@ -83,7 +99,9 @@ module.exports = {
     },
 
     async getcache (type, userid) {
-        const [rows] = await connection.execute('SELECT * FROM `bot-cache` WHERE `type`= ? AND `userid` = ? limit 1;', [type, userid]);
+        const conn = await pool.getConnection();
+        const [rows] = await conn.execute('SELECT * FROM `bot-cache` WHERE `type`= ? AND `userid` = ? limit 1;', [type, userid]);
+        conn.release();
         if (rows.length == 1) {
             return rows[0]
         } else {

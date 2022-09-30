@@ -6,7 +6,7 @@ const cache = require("../misc/cache")
 const reauth = require("../valorant/reauth")
 const Valorant = require("../auth/main.js")
 
-router.get("/valorant/getloadout", async (req, res, _next) => {
+router.get("/valorant/getinventory", async (req, res, _next) => {
   const discordid = req.header("discordid")
 
   if (discordid == undefined) {
@@ -25,24 +25,27 @@ router.get("/valorant/getloadout", async (req, res, _next) => {
 
     const user = await db.getUser(discordid)
 
-    const caches = await cache.getcache("loadout", user.id)
+    const caches = await cache.getcache("inventory", user.id)
 
     const valorantApi = new Valorant.API(user.region)
 
     valorantApi.access_token = user.access_token
     valorantApi.entitlements_token = user.entitlements_token
 
-    let loadout = ""
+    let inventory = ""
     let status = false
 
     if (caches) {
-      loadout = caches
+      inventory = caches
     } else {
       await valorantApi
-        .getPlayerLoadout(user.playerid)
+        .getEntitlements(user.playerid)
         .then((response) => {
-          loadout = response.data
-          db.updatecache(user.id, loadout, "loadout")
+          inventory = {
+            data: response.data.EntitlementsByTypes,
+            date: Math.floor(new Date().getTime() / 1000),
+          }
+          db.updatecache(user.id, inventory, "inventory")
         })
         .catch((error) => {
           status = error.message
@@ -51,7 +54,7 @@ router.get("/valorant/getloadout", async (req, res, _next) => {
     if (status) {
       res.end(JSON.stringify({ status: status }))
     } else {
-      res.json(loadout)
+      res.json(inventory)
     }
   }
 })
