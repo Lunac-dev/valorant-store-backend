@@ -365,12 +365,12 @@ class API {
                 throw new Error("Unknown Error")
             }
         } else if (response.data.type == 'response') {
-            //update ssid cookie
+            // update ssid cookie
             this.ssidcookie = response.headers['set-cookie'].find(elem => /^ssid/.test(elem)).split(';')[0]+ ';';
-            //update tdid cookie
+            // update tdid cookie
             this.tdidcookie = response.headers['set-cookie'].find(elem => /^tdid/.test(elem)).split(';')[0]+ ';';
-            //update access token
-            const tokens = parseUrl(response.data.response.parameters.uri);
+            // update access token
+            const tokens = parseTokensFromUrl(response.data.response.parameters.uri);
             this.access_token = tokens.access_token;
         }
         //console.assert(response.status === 303, `Cookie Reauth status code is ${response.status}!`, response);
