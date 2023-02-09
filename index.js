@@ -7,19 +7,22 @@ const app = express();
 
 const shopM = require("./valorant/shop")
 
-const port = 5000;
+const cron = require("node-cron")
+cron.schedule("0 0 */1 * * *", () => shopM.getData())
+
+const port = 5100;
 
 const log4js = require("log4js");
 log4js.configure({
     appenders: {
-        app: { type: 'dateFile', filename: 'application.log', pattern: 'yyyy-MM-dd', daysToKeep: 3 }
+        app: { type: 'dateFile', filename: 'application.log', numBackups: 3 }
     },
     categories: {
         default: { appenders: ['app'], level: 'all' }
     }
 })
 
-let whitelist = ["https://valorantstore.net", "https://www.valorantstore.net"] //Cors whitelist
+const whitelist = ["https://valorantstore.net", "https://www.valorantstore.net", "http://localhost:3000"] //Cors whitelist
 
 app.set('trust proxy', 1)
 
@@ -28,28 +31,32 @@ let corsOptions = {
     //origin: "*",
     optionsSuccessStatus: 200,
     credentials: true,
-    methods: ["GET"],
+    methods: ["GET", "POST"],
 }
 
 app.use(cors(corsOptions)) //Cors
 
+const cookieParser = require('cookie-parser')
+app.use(cookieParser())
+
+app.use(express.urlencoded({extended: true}))
+app.use(express.json())
+
 shopM.getData()
 
-const shop = require("./routes/valorant-shop");
-const wallet = require("./routes/valorant-wallet");
-const mission = require("./routes/valorant-mission");
-const acc = require("./routes/valorant-acc");
-const loadout = require("./routes/valorant-loadout");
-const inventory = require("./routes/valorant-inventory");
-const vsf = require("./routes/valorant-store-featured");
+const bundle = require("./routes/bundle");
 const vn = require("./routes/valorant-news");
-const vk = require("./routes/valorant-skin");
+const va = require("./routes/valorant-acc");
+const vs = require("./routes/valorant-store");
+const vskin = require("./routes/valorant-skin");
+const settings = require("./routes/settings");
 const vsc = require("./routes/vsc");
-app.use(shop, vsc, wallet, mission, acc, loadout, vsf, vn, vk, inventory);
+const reminder = require("./routes/reminder");
+app.use(bundle, vn, vsc, vs, vskin, settings, va, reminder);
 
 //404
 app.use((_req, res, _next)=>{ res.status(404).send('Content Not Found'); });
 
 var server = app.listen(port, function(){
-    console.log("Node.js is listening to port:" + server.address().port);
+    console.log("Node.js is listening to port", server.address().port);
 });

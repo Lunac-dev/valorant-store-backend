@@ -1,30 +1,39 @@
 const express = require("express")
 const router = express.Router()
-const axios = require("axios").default
 
 const db = require("../db.js")
 
-router.get("/vsc/news", async (req, res, _next) => {
-  if (req.query.type === undefined || req.query.limit === undefined) {
-    res.end(JSON.stringify({ status: "Unauthorized request :(" }))
-    return
-  }
-  try {
-    const [rows, fields] = await db.execute(
-      "SELECT * FROM `news` where `type` = ? order by id DESC limit ?;",
-      [req.query.type, req.query.limit]
-    )
+const cron = require("node-cron")
+cron.schedule("0 */10 * * * *", () => getData())
 
-    let news = []
+let ranking_json = null
+let date = null
 
-    rows.forEach(function (row) {
-      news.push({ title: row.title, text: row.text, date: row.date })
-    })
+let vsc_stats = null
 
-    res.json(news)
-  } catch (err) {
-    res.end(JSON.stringify({ status: err.message }))
-  }
+getData()
+
+async function getData() {
+  let tmp = []
+  const stats = await db.getStoreStatsRanking()
+  stats.forEach(function (row) {
+    tmp.push({ name: row.name, uuid: row.uuid, count: row.count, rank: row.rank_result })
+  })
+  ranking_json = tmp
+
+  let today = new Date();
+  let formatted = today.toLocaleString('ja-JP');
+  date = formatted
+
+  vsc_stats = await db.getStats()
+}
+
+router.get("/ranking", async (req, res, _next) => {
+  res.json({ data: ranking_json, date })
+})
+
+router.get("/stats", async (req, res, _next) => {
+  res.json({ data: vsc_stats, date })
 })
 
 module.exports = router

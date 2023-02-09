@@ -1,22 +1,92 @@
 "use strict";
 
-const axios = require("axios").default;
-const { SocksProxyAgent } = require('socks-proxy-agent');
-const { Agent } = require("https");
+const axios = require("axios")
 const regions = require("./regions");
 const fs = require('fs');
 
-const agent = new Agent({
-    ciphers: [
-        "TLS_CHACHA20_POLY1305_SHA256",
-        "TLS_AES_128_GCM_SHA256",
-        "TLS_AES_256_GCM_SHA384",
-    ].join(":"),
+const log4js = require("log4js");
+const logger = log4js.getLogger()
+const { isRateLimited, checkRateLimit } = require("../misc/rateLimit")
+
+const tlsCiphers = [
+    'TLS_CHACHA20_POLY1305_SHA256',
+    'TLS_AES_128_GCM_SHA256',
+    'TLS_AES_256_GCM_SHA384',
+    'ECDHE-ECDSA-CHACHA20-POLY1305',
+    'ECDHE-RSA-CHACHA20-POLY1305',
+    'ECDHE-ECDSA-AES128-SHA256',
+    'ECDHE-RSA-AES128-SHA256',
+    'ECDHE-ECDSA-AES256-GCM-SHA384',
+    'ECDHE-RSA-AES256-GCM-SHA384',
+    'ECDHE-ECDSA-AES128-SHA',
+    'ECDHE-RSA-AES128-SHA',
+    'ECDHE-ECDSA-AES256-SHA',
+    'ECDHE-RSA-AES256-SHA',
+    'RSA-PSK-AES128-GCM-SHA256',
+    'RSA-PSK-AES256-GCM-SHA384',
+    'RSA-PSK-AES128-CBC-SHA',
+    'RSA-PSK-AES256-CBC-SHA',
+]
+
+const tlsSigAlgs = [
+    'ecdsa_secp256r1_sha256',
+    'rsa_pss_rsae_sha256',
+    'rsa_pkcs1_sha256',
+    'ecdsa_secp384r1_sha384',
+    'rsa_pss_rsae_sha384',
+    'rsa_pkcs1_sha384',
+    'rsa_pss_rsae_sha512',
+    'rsa_pkcs1_sha512',
+    'rsa_pkcs1_sha1',
+]
+
+const httpsAgentOptions = {
+    ciphers: tlsCiphers.join(':'),
+    sigalgs: tlsSigAlgs.join(':'),
     honorCipherOrder: true,
-    minVersion: "TLSv1.2",
-    maxVersion: "TLSv1.3",
-    keepAlive: true
-});
+    minVersion: "TLSv1.3"
+}
+
+const parseSetCookie = (setCookie) => {
+    if(!setCookie) {
+        console.error("Riot didn't return any cookies during the auth request! Cloudflare might have something to do with it...");
+        return {};
+    }
+
+    const cookies = {};
+    for(const cookie of setCookie) {
+        const sep = cookie.indexOf("=");
+        cookies[cookie.slice(0, sep)] = cookie.slice(sep + 1, cookie.indexOf(';'));
+    }
+    return cookies;
+}
+
+const stringifyCookies = (cookies) => {
+    const cookieList = [];
+    for (let [key, value] of Object.entries(cookies)) {
+        cookieList.push(key + "=" + value);
+    }
+    return cookieList.join("; ");
+}
+
+const { Agent } = require('better-https-proxy-agent');
+
+let number = 0;
+
+function getAgent() {
+    const proxies = JSON.parse(fs.readFileSync('./proxies.json', 'utf8'));
+    const max = proxies.all.length-1;
+    if (number > max) { number = 0 }
+    const proxy = proxies.all[number].split(':');;
+    const proxyRequestOptions = {
+        protocol: "http:",
+        host: proxy[0],
+        port: proxy[1]
+    };
+    const agent = new Agent(httpsAgentOptions, proxyRequestOptions);
+    number++
+    return agent
+}
 
 const parseTokensFromUrl = (uri) => {
     let url = new URL(uri);
@@ -36,8 +106,6 @@ const parseUrl = (uri) => {
     };
 };
 
-let number = 0;
-
 class API {
     constructor(region = regions.AsiaPacific) {
         this.region = region;
@@ -48,8 +116,8 @@ class API {
         this.tdidcookie = null;
         this.access_token = null;
         this.entitlements_token = null;
-        this.user_agent = "RiotClient/56.0.0.4578455.4552318 rso-auth (Windows;10;;Professional, x64)";
-        this.client_version = "release-05.06-shipping-6-765767";
+        this.user_agent = "RiotClient/63.0.5.4887690.4789131 rso-auth (Windows; 10;;Professional, x64)";
+        this.client_version = "release-06.01-shipping-8-820493";
         this.client_platform = {
             platformType: "PC",
             platformOS: "Windows",
@@ -89,89 +157,99 @@ class API {
     }
 
     async authorize(username, password) {
-        const proxies = JSON.parse(fs.readFileSync('./proxies.json', 'utf8'));
-        const max = proxies.all.length-1;
-        if (number > max) { number = 0 }
-        const proxy = process.env.SOCKS + proxies.all[number];
-        number++;
-        const httpsAgent = new SocksProxyAgent(proxy);
-        httpsAgent.options = {
-            ciphers: [
-                "TLS_CHACHA20_POLY1305_SHA256",
-                "TLS_AES_128_GCM_SHA256",
-                "TLS_AES_256_GCM_SHA384",
-            ].join(":"),
-            honorCipherOrder: true,
-            minVersion: "TLSv1.2",
-            maxVersion: "TLSv1.3",
-            keepAlive: true
-        }
-        const httpAgent = new SocksProxyAgent(proxy);
-        httpAgent.options = {
-            keepAlive: true
-        }
+
+        let rateLimit = false
+
+        const httpsAgent = getAgent()
+        const httpAgent = httpsAgent
+
+        logger.info("Authorize Request", username, httpAgent._betterHttpsProxyOptions.host)
+
         // fetch session cookie
-        let response = (
-        await axios.post(
-            "https://auth.riotgames.com/api/v1/authorization/",
-            {
-            client_id: "play-valorant-web-prod",
-            nonce: 1,
-            redirect_uri: "https://playvalorant.com/opt_in",
-            response_type: "token id_token",
-            scope: "account openid",
-            },
-            {
-            headers: {
-                "User-Agent": this.user_agent,
-            },
-            httpsAgent: httpsAgent,
-            httpAgent: httpAgent
-            }
+        const req1 = (
+            await axios.post(
+                "https://auth.riotgames.com/api/v1/authorization",
+                {
+                    "client_id": "riot-client",
+                    "code_challenge": "",
+                    "code_challenge_method": "",
+                    "acr_values": "",
+                    "claims": "",
+                    "nonce": "69420",
+                    "redirect_uri": "http://localhost/redirect",
+                    "response_type": "token id_token",
+                    "scope": "openid link ban lol_region"
+                },
+                {
+                    headers: {
+                        "Content-Type": "application/json",
+                        "User-Agent": this.user_agent,
+                    },
+                    httpAgent,
+                    httpsAgent
+                }
+            )
         )
-        )
+
+        console.assert(req1.status === 200, `Auth Request Cookies status code is ${req1.status}!`, req1.data);
+
+        // check for RateLimit
+        rateLimit = checkRateLimit(req1, "auth.riotgames.com");
+        if (rateLimit) {
+            logger.error("Authorize RateLimit", username, httpAgent._betterHttpsProxyOptions.host)
+            throw new Error("There are too many people logging in at the same time, which is why the limit is being imposed. Please try again later.")
+        }
+        //
+
+        let cookies = parseSetCookie(req1.headers["set-cookie"]);
 
         // update asid cookie
-        this.asidcookie = response.headers["set-cookie"].find((elem) => /^asid/.test(elem)).split(';')[0] + ';';
+        //this.asidcookie = req1.headers["set-cookie"].find((elem) => /^asid/.test(elem)).split(';')[0] + ';';
 
         // fetch auth tokens
-        let access_tokens = await axios.put(
-        "https://auth.riotgames.com/api/v1/authorization/",
-        {
-            "type": "auth",
-            "username": username,
-            "password": password,
-            "remember": true
-        },
-        {
-            headers: {
-            "Cookie": this.asidcookie,
-            "User-Agent": this.user_agent,
+        const access_tokens = await axios.put(
+            "https://auth.riotgames.com/api/v1/authorization",
+            {
+                "type": "auth",
+                "username": username,
+                "password": password,
+                "remember": true
             },
-            httpsAgent: httpsAgent,
-            httpAgent: httpAgent
-        }
+            {
+                headers: {
+                    "Content-Type": 'application/json',
+                    "Cookie": stringifyCookies(cookies),
+                    "User-Agent": this.user_agent,
+                },
+                httpAgent,
+                httpsAgent
+            }
         );
 
         // check for error
+        console.assert(access_tokens.status === 200, `Auth Request Cookies status code is ${access_tokens.status}!`, access_tokens.data);
+
+        // check for RateLimit
+        rateLimit = checkRateLimit(access_tokens, "auth.riotgames.com");
+        if (rateLimit) {
+            logger.error("Authorize RateLimit", username, httpAgent._betterHttpsProxyOptions.host)
+            throw new Error("There are too many people logging in at the same time, which is why the limit is being imposed. Please try again later.")
+        }
+        //
+
         if(access_tokens.data.error){
-            if (access_tokens.data.error = 'rate_limited') {
-                console.error('rate_limited: ' + proxies.all[number])
-                throw new Error("Cannot be processed by many requests. Please wait a while and try again.")
-            } else {
-                throw new Error(access_tokens.data.error);
-            }
+            throw new Error(access_tokens.data.error);
         }
 
         if (access_tokens.data.type == "multifactor") {
-            this.asidcookie = access_tokens.headers["set-cookie"].find((elem) => /^asid/.test(elem)).split(';')[0] + ';';
+            //this.asidcookie = access_tokens.headers["set-cookie"].find((elem) => /^asid/.test(elem)).split(';')[0] + ';';
             throw new Error("2fa");
         }
 
         // update ssid cookie
         this.ssidcookie = access_tokens.headers['set-cookie'].find(cookie => /^ssid/.test(cookie)).split(';')[0]+ ';';
 
-        //update tdid cookie
+        // update tdid cookie
         this.tdidcookie = access_tokens.headers["set-cookie"].find((elem) => /^tdid/.test(elem)).split(';')[0]+ ';';
 
         // update access token
@@ -180,26 +258,29 @@ class API {
 
         // fetch entitlements token
         this.entitlements_token = (
-        await axios.post(
-            "https://entitlements.auth.riotgames.com/api/token/v1",
-            {},
-            {
-            headers: {
-                Authorization: `Bearer ${tokens.access_token}`,
-            },
-            }
-        )
+            await axios.post(
+                "https://entitlements.auth.riotgames.com/api/token/v1",
+                {},
+                {
+                headers: {
+                    Authorization: `Bearer ${tokens.access_token}`,
+                },
+                }
+            )
         ).data.entitlements_token;
 
         // update user_id from access_token
         this.user_id = JSON.parse(
         Buffer.from(tokens.access_token.split(".")[1], "base64").toString()
         ).sub;
+        logger.info("Authorize Success", username)
     }
 
-    async reauthorize(ssidcookie, tdidcookie) {
+
+    // Not use
+    async reauthorize() {
         const response = await axios.post(
-        "https://auth.riotgames.com/api/v1/authorization/",
+        "https://auth.riotgames.com/api/v1/authorization",
         {
             client_id: "play-valorant-web-prod",
             nonce: 1,
@@ -211,7 +292,7 @@ class API {
         {
             headers: {
                 "User-Agent": this.user_agent,
-                Cookie: ssidcookie + " " + tdidcookie,
+                Cookie: this.ssidcookie + " " + this.tdidcookie,
             },
             httpsAgent: agent,
         }
@@ -240,57 +321,48 @@ class API {
 
     // test
     async reauthorizeproxy() {
-        const proxies = JSON.parse(fs.readFileSync('./proxies.json', 'utf8'));
-        const max = proxies.all.length-1;
-        if (number > max) { number = 0 }
-        const proxy = process.env.SOCKS + proxies.all[number];
-        number++;
-        const httpsAgent = new SocksProxyAgent(proxy);
-        httpsAgent.options = {
-            ciphers: [
-                "TLS_CHACHA20_POLY1305_SHA256",
-                "TLS_AES_128_GCM_SHA256",
-                "TLS_AES_256_GCM_SHA384",
-            ].join(":"),
-            honorCipherOrder: true,
-            minVersion: "TLSv1.2",
-            maxVersion: "TLSv1.3",
-            keepAlive: true
-        }
-        const httpAgent = new SocksProxyAgent(proxy);
-        httpAgent.options = {
-            keepAlive: true
-        }
+        let rateLimit = false
+        const httpsAgent = getAgent()
+        const httpAgent = httpsAgent
+
+        logger.info("Reauthorizeproxy Request")
+
         const response = await axios.post(
-            "https://auth.riotgames.com/api/v1/authorization/",
+            "https://auth.riotgames.com/api/v1/authorization",
             {
-                client_id: "play-valorant-web-prod",
-                nonce: 1,
-                redirect_uri: "https://playvalorant.com/opt_in",
-                response_type: "token id_token",
-                response_mode: "query",
-                scope: "account openid"
+                "client_id": "riot-client",
+                "code_challenge": "",
+                "code_challenge_method": "",
+                "acr_values": "",
+                "claims": "",
+                "nonce": "69420",
+                "redirect_uri": "http://localhost/redirect",
+                "response_type": "token id_token",
+                "scope": "openid link ban lol_region"
             },
             {
                 headers: {
+                    "Content-Type": "application/json",
                     "User-Agent": this.user_agent,
                     Cookie: this.ssidcookie + " " + this.tdidcookie,
                 },
-                httpsAgent: httpsAgent,
-                httpAgent: httpAgent
+                httpAgent,
+                httpsAgent
             }
         );
+
+        // check for RateLimit
+        rateLimit = checkRateLimit(response, "auth.riotgames.com");
+        if (rateLimit) {
+            logger.error("Reauthorizeproxy RateLimit", username, httpAgent._betterHttpsProxyOptions.host)
+            throw new Error("The server is currently busy and you could not login. Please try again later.")
+        }
+
         if (response.data.type == 'auth') {
             if (response.data.error == undefined) {
                 throw new Error("expired")
             } else {
-                if (response.data.error = 'rate_limited') {
-                    console.error('rate_limited: ' + proxies.all[number])
-                    throw new Error("Cannot be processed by many requests. Please wait a while and try again.")
-                } else {
-                    console.log(response)
-                    throw new Error("Unknown Error")
-                }
+                throw new Error("Unknown Error")
             }
         } else if (response.data.type == 'response') {
             //update ssid cookie
@@ -304,6 +376,7 @@ class API {
         //console.assert(response.status === 303, `Cookie Reauth status code is ${response.status}!`, response);
     }
 
+    // Not use
     async authWithCode(asidcookie, code) {
         const proxies = JSON.parse(fs.readFileSync('./proxies.json', 'utf8'));
         const max = proxies.all.length-1;

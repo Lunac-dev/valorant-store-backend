@@ -1,7 +1,7 @@
 const express = require("express")
 const router = express.Router()
 
-const axios = require("axios").default
+const axios = require("axios")
 
 const cron = require("node-cron")
 cron.schedule("0 0 */1 * * *", () => getData())

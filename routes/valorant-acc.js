@@ -11,9 +11,16 @@ const rate = require("express-rate-limit")
 const log4js = require("log4js");
 const logger = log4js.getLogger()
 
+const axios = require("axios")
+
+const Bottleneck = require("bottleneck/es5");
+const limiter = new Bottleneck({
+  maxConcurrent: 2,
+});
+
 const unlinklimiter = rate({
   windowMs: 120 * 60 * 1000,
-  max: 1,
+  max: 2,
   standardHeaders: true,
   legacyHeaders: false,
   handler: function (_req, res, _next) {
@@ -27,7 +34,7 @@ const unlinklimiter = rate({
 
 const loginlimiter = rate({
   windowMs: 60 * 60 * 1000,
-  max: 3,
+  max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   handler: function (_req, res /*next*/) {
@@ -39,24 +46,39 @@ const loginlimiter = rate({
   keyGenerator: (req, _res) => req.headers["cf-connecting-ip"],
 })
 
-router.get("/valorant/login", loginlimiter, async (req, res, _next) => {
-  logger.info("Login Request", req.header("discordid"), req.headers["cf-connecting-ip"])
-  const password = req.header("password")
-  const username = req.header("username")
-  const discordid = req.header("discordid")
-  const region = req.header("region")
-  let relogin = req.header("relogin")
+router.post("/login", loginlimiter, async (req, res, _next) => {
 
-  if (relogin == "true") {
+  // Auth
+  if (req.header('Authorization') == undefined) {
+    res.end(JSON.stringify({ status: 400 }))
+    return
+  }
+  let auth = undefined
+  try {
+    auth = await axios.get('https://discordapp.com/api/users/@me', {
+    headers: {
+      Authorization: req.header('Authorization'),
+    }
+  })
+  } catch (err) {
+    console.error(err.message, req.headers["cf-connecting-ip"])
+    return
+  }
+  // End
+
+  logger.info("Login Request", auth.data.id, req.headers["cf-connecting-ip"])
+  const password = req.body.password
+  const username = req.body.username
+  const discordid = auth.data.id
+  const region = req.body.region
+  let relogin = req.body.relogin
+
+  if (relogin) {
     relogin = 1
   } else {
     relogin = 0
   }
 
-  if (discordid == undefined) {
-    res.end(JSON.stringify({ status: "Unauthorized request :(" }))
-    return
-  }
   if (!(await db.empty(discordid))) {
     res.end(JSON.stringify({ status: "FAILED" }))
   } else {
@@ -64,9 +86,19 @@ router.get("/valorant/login", loginlimiter, async (req, res, _next) => {
 
     let status = false
 
-    await valorantApi.authorize(username, password).catch((err) => {
+    // await valorantApi.authorize(username, password)
+    // .catch((err) => {
+    //   logger.error("[x] Login Request", err.message)
+    //   console.error(err)
+    //   status = err.message
+    // });
+
+    await limiter.schedule(() => valorantApi.authorize(username, password))
+    .catch((err) => {
+      logger.error("[x] Login Request", err.message)
+      console.error(err)
       status = err.message
-    })
+    });
 
     if (status) {
       res.end(JSON.stringify({ status: status }))
@@ -100,11 +132,30 @@ router.get("/valorant/login", loginlimiter, async (req, res, _next) => {
   }
 })
 
-router.get("/valorant/logout", unlinklimiter, async (req, res, _next) => {
-  logger.info("Logout Request", req.header("discordid"), req.headers["cf-connecting-ip"])
-  const discordid = req.header("discordid")
+router.post("/logout", unlinklimiter, async (req, res, _next) => {
+
+  // Auth
+  if (req.header('Authorization') == undefined) {
+    res.end(JSON.stringify({ status: 400 }))
+    return
+  }
+  let auth = undefined
+  try {
+    auth = await axios.get('https://discordapp.com/api/users/@me', {
+    headers: {
+      Authorization: req.header('Authorization'),
+    }
+  })
+  } catch (err) {
+    console.error(err.message, req.headers["cf-connecting-ip"])
+    return
+  }
+  // End
+
+  logger.info("Logout Request", auth.data.id, req.headers["cf-connecting-ip"])
+  const discordid = auth.data.id
   if (discordid == undefined) {
-    res.end(JSON.stringify({ status: "Unauthorized request :(" }))
+    res.end(JSON.stringify({ status: 400 }))
     return
   }
 

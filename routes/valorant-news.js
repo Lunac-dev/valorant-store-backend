@@ -1,7 +1,7 @@
 const express = require("express")
 const router = express.Router()
 
-const axios = require("axios").default
+const axios = require("axios")
 
 const cron = require("node-cron")
 cron.schedule("0 0 */1 * * *", () => updateNews())
@@ -34,13 +34,13 @@ async function updateNews() {
       }
     }
     news = tmp
-    console.log("Update", "Valorant Game News")
+    console.log("Updated Valorant Game News")
   } catch (error) {
     console.log(error.response.data.error)
   }
 }
 
-router.get("/valorant/news", async (req, res, _next) => {
+router.get("/news", async (req, res, _next) => {
   res.json(news)
 })
 

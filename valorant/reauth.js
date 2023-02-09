@@ -6,6 +6,11 @@ const crypto = require("crypto")
 const log4js = require("log4js");
 const logger = log4js.getLogger()
 
+const Bottleneck = require("bottleneck/es5");
+const limiter = new Bottleneck({
+  maxConcurrent: 2,
+});
+
 module.exports.reauthUser = async (discordid) => {
   const user = await db.getUser(discordid)
 
@@ -25,10 +30,21 @@ module.exports.reauthUser = async (discordid) => {
 
     //Cookie reauth
     //Sometimes the response is empty.
-    await valorantApi.reauthorizeproxy().catch((err) => {
-      console.error(err)
+    logger.info("Reauth Request", discordid)
+
+    // valorantApi.reauthorizeproxy()
+    // .catch((err) => {
+    //   console.error("Reauth Error", discordid, err.message)
+    //   logger.error("Reauth Error", discordid, err.message)
+    //   status = err.message
+    // });
+
+    await limiter.schedule(() => valorantApi.reauthorizeproxy())
+    .catch((err) => {
+      console.error("Reauth Error", discordid, err.message)
+      logger.error("Reauth Error", discordid, err.message)
       status = err.message
-    })
+    });
 
     if (status) {
       if (status == "expired") {
@@ -49,15 +65,23 @@ module.exports.reauthUser = async (discordid) => {
           const decrypted = decipher.update(userdata.password, "hex", "utf-8")
           const decrypted_pass = decrypted + decipher.final("utf-8")
 
-          await valorantApi
-            .authorize(userdata.username, decrypted_pass)
-            .then(() => {
-              status = false
-            })
-            .catch((err) => {
-              console.log(err.message)
-              status = err.message
-            })
+          // valorantApi.authorize(userdata.username, decrypted_pass)
+          // .then(() => {
+          //   status = false
+          // })
+          // .catch((err) => {
+          //   console.error(err)
+          //   status = err.message
+          // });
+
+          await limiter.schedule(() => valorantApi.authorize(userdata.username, decrypted_pass))
+          .then(() => {
+            status = false
+          })
+          .catch((err) => {
+            console.error(err)
+            status = err.message
+          });
 
           if (status) {
             await db.remove(discordid)
@@ -81,7 +105,7 @@ module.exports.reauthUser = async (discordid) => {
               }
             }
           } else {
-            logger.info("Reauth", discordid)
+            logger.info("Reauth Success [Relogin]", discordid)
             const update = await db.update(
               valorantApi.access_token,
               valorantApi.ssidcookie,
@@ -103,6 +127,7 @@ module.exports.reauthUser = async (discordid) => {
         return { success: false, error: status }
       }
     } else {
+      logger.info("Reauth Success", discordid)
       const update = await db.update(
         valorantApi.access_token,
         valorantApi.ssidcookie,

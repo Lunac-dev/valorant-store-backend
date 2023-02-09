@@ -9,18 +9,18 @@
   },
   "author": "",
   "dependencies": {
-    "@ing3kth/val-api": "^2.0.2",
-    "axios": "^0.27.2",
-    "axios-socks5-agent": "^1.0.5",
+    "axios": "^0.19.2",
+    "better-https-proxy-agent": "^1.0.9",
+    "bottleneck": "^2.19.5",
+    "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
-    "dotenv": "^16.0.1",
-    "express": "^4.17.2",
-    "express-rate-limit": "^6.4.0",
-    "express-session": "^1.17.3",
+    "dayjs": "^1.11.6",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.7.0",
     "log4js": "^6.6.1",
     "mysql2": "^2.3.3",
-    "node-cron": "^3.0.0",
-    "socks-proxy-agent": "^7.0.0"
+    "node-cron": "^3.0.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.15"
