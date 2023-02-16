@@ -52,7 +52,13 @@ const vskin = require("./routes/valorant-skin");
 const settings = require("./routes/settings");
 const vsc = require("./routes/vsc");
 const reminder = require("./routes/reminder");
+const { getPrometheusClient, prometheusClient } = require('./misc/prometheus');
 app.use(bundle, vn, vsc, vs, vskin, settings, va, reminder);
+
+app.get("/metrics", async (req, res) => {
+    res.set("Content-Type", "text/plain");
+    res.send(await prometheusClient.register.metrics());
+});
 
 //404
 app.use((_req, res, _next)=>{ res.status(404).send('Content Not Found'); });

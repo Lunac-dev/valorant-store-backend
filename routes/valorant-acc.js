@@ -14,6 +14,7 @@ const logger = log4js.getLogger()
 const axios = require("axios")
 
 const Bottleneck = require("bottleneck/es5");
+const { LoginRequests } = require("../misc/prometheus")
 const limiter = new Bottleneck({
   maxConcurrent: 2,
 });
@@ -101,7 +102,13 @@ router.post("/login", loginlimiter, async (req, res, _next) => {
     });
 
     if (status) {
-      res.end(JSON.stringify({ status: status }))
+      LoginRequests.labels("error").inc()
+      if (status.includes('403')) {
+        logger.error("[!] 403 Error!", status)
+        res.end(JSON.stringify({ status: "Sorry, there seems to be a problem with the Proxy. Could you please try again?" }))
+      } else {
+        res.end(JSON.stringify({ status: status }))
+      }
       return
     }
 
@@ -125,8 +132,10 @@ router.post("/login", loginlimiter, async (req, res, _next) => {
     }
 
     if (insert) {
+      LoginRequests.labels("success").inc()
       res.end(JSON.stringify({ status: "OK" }))
     } else {
+      LoginRequests.labels("error").inc()
       res.end(JSON.stringify({ status: "Error while adding" }))
     }
   }

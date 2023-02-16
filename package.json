@@ -20,7 +20,8 @@
     "express-rate-limit": "^6.7.0",
     "log4js": "^6.6.1",
     "mysql2": "^2.3.3",
-    "node-cron": "^3.0.0"
+    "node-cron": "^3.0.0",
+    "prom-client": "^14.1.1"
   },
   "devDependencies": {
     "nodemon": "^2.0.15"

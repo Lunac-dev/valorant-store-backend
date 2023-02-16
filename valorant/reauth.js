@@ -84,18 +84,25 @@ module.exports.reauthUser = async (discordid) => {
           });
 
           if (status) {
-            await db.remove(discordid)
             if (status == "2fa") {
+              await db.remove(discordid)
               return {
                 success: false,
                 error:
                   "Automatic login is not possible because two-factor authentication is enabled. Automatically logged out.",
               }
             } else if (status == "auth_failure") {
+              await db.remove(discordid)
               return {
                 success: false,
                 error:
                   "Password is incorrect. If you have changed your password, please logout and login again. Automatically logged out.",
+              }
+            } else if (status.includes('403')) {
+              return {
+                success: false,
+                error:
+                  "Sorry, there seems to be a problem with the Proxy. Could you please try again?",
               }
             } else {
               return {

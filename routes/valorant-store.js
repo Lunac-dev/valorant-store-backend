@@ -6,6 +6,7 @@ const db = require("../db")
 const cache = require("../misc/cache")
 
 const axios = require("axios")
+const { getStoreRequests, StoreRequests } = require("../misc/prometheus")
 
 router.get("/getstore", async (req, res, _next) => {
   // Auth
@@ -30,8 +31,10 @@ router.get("/getstore", async (req, res, _next) => {
   } else {
     const store = await shop.getDailyShop(auth.data.id)
     if (store.success) {
+      StoreRequests.labels("success").inc()
       res.json(store.shop)
     } else {
+      StoreRequests.labels("error").inc()
       res.end(JSON.stringify({ status: store.error }))
     }
   }
