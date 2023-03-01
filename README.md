@@ -18,6 +18,7 @@ If you need help, join us on Discord.
 - [Techchrism](https://github.com/techchrism/valorant-api-docs) (Docs)
 - [RumbleMike](https://github.com/RumbleMike/ValorantClientAPI) (API)
 - [Liamcottle](https://github.com/liamcottle/valorant.js) (API)
+- [SkinPeek](https://github.com/giorgi-o/SkinPeek)
 
 # No License
 
