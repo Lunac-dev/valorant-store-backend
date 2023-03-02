@@ -7,7 +7,7 @@
 <br/>
 
 ## About
-This is the [ValorantStore.net](https://valorantstore.net/) back end. Anyone can see the code. The front end can be found [here](https://github.com/Lunac-dev/valorant-store-frontend).
+This is the [ValorantStore.net](https://valorantstore.net/) backend. Anyone can see the code. The frontend can be found [here](https://github.com/Lunac-dev/valorant-store-frontend).
 
 ## Support
 If you need help, join us on Discord.
