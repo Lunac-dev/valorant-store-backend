@@ -7,7 +7,7 @@
 <br/>
 
 > [!CAUTION]
-> This project has been completed and is not maintained. `valorantstore.net` may already be managed by someone else.
+> This project has been ended and is not maintained. `valorantstore.net` may already be managed by someone else.
 
 ## About
 This is the [ValorantStore.net](https://valorantstore.net/) backend. Anyone can see the code. The frontend can be found [here](https://github.com/Lunac-dev/valorant-store-frontend).
