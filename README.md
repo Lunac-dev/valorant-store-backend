@@ -1,10 +1,13 @@
 <p align="center">
-  <img src="https://s3.valorantstore.net/img/vslogo400x400.png" height="200">
+  <img src="https://s3.shadow.garden/shadowfile/dgomrrab998_icon.png" height="200">
 </p>
 <p align="center">
 <a href="https://discord.gg/4zrQDW9PNq"><img src="https://img.shields.io/badge/Discord-Lunac%231111-%237289DA?style=flat&logo=discord" alt="discord"/></a>
 <a href="https://twitter.com/lunac_dev"><img src="https://img.shields.io/badge/Twitter-@lunac_dev-%231DA1F2?style=flat&logo=twitter" alt="twitter"/></a>
 <br/>
+
+> [!CAUTION]
+> This project has been completed and is not maintained. `valorantstore.net` may already be managed by someone else.
 
 ## About
 This is the [ValorantStore.net](https://valorantstore.net/) backend. Anyone can see the code. The frontend can be found [here](https://github.com/Lunac-dev/valorant-store-frontend).
