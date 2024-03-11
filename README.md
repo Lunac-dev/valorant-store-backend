@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://s3.shadow.garden/shadowfile/dgomrrab998_icon.png" height="200">
+  <img src="https://s3.shadowfile.net/shadowfile/dgomrrab998_icon.png" height="200">
 </p>
 <p align="center">
 <a href="https://discord.gg/4zrQDW9PNq"><img src="https://img.shields.io/badge/Discord-Lunac%231111-%237289DA?style=flat&logo=discord" alt="discord"/></a>
